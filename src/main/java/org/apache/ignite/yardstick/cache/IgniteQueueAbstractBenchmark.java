@@ -37,7 +37,7 @@ public abstract class IgniteQueueAbstractBenchmark extends IgniteAbstractBenchma
         colCfg.setCollocated(false);
         colCfg.setCacheName(args.cacheName());
 
-        queue = ignite().queue(args.cacheName() + "-queue", 0, colCfg);
+        queue = ignite().queue("queue", 0, colCfg);
     }
 
     /** {@inheritDoc} */
