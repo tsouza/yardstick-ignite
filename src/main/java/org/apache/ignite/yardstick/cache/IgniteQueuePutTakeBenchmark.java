@@ -18,7 +18,8 @@
 package org.apache.ignite.yardstick.cache;
 
 import org.apache.ignite.IgniteQueue;
-import org.apache.ignite.lang.IgniteRunnable;
+import org.apache.ignite.lang.IgniteCallable;
+import org.apache.ignite.lang.IgniteReducer;
 import org.yardstickframework.BenchmarkConfiguration;
 
 import java.util.ArrayList;
@@ -31,7 +32,7 @@ import java.util.Map;
 public class IgniteQueuePutTakeBenchmark extends IgniteQueueAbstractBenchmark {
 
     /** Jobs for run */
-    private List<IgniteRunnable> jobs;
+    private List<IgniteCallable<Integer>> jobs;
 
     /** {@inheritDoc} */
     @Override public void setUp(BenchmarkConfiguration cfg) throws Exception {
@@ -51,13 +52,27 @@ public class IgniteQueuePutTakeBenchmark extends IgniteQueueAbstractBenchmark {
     /** {@inheritDoc} */
     @Override public boolean test(Map<Object, Object> ctx) throws Exception {
 
-        ignite().compute().run(jobs);
+        int count = ignite().compute().call(jobs, new IgniteReducer<Integer, Integer>() {
+            private int count = 0;
+            @Override
+            public boolean collect(Integer integer) {
+                count += integer;
+                return true;
+            }
+
+            @Override
+            public Integer reduce() {
+                return count;
+            }
+        });
+
+        assert queue.isEmpty() && count == args.batchSize();
 
         return true;
     }
 
 
-    public static class Consumer implements IgniteRunnable {
+    public static class Consumer implements IgniteCallable<Integer> {
 
         private final IgniteQueue<Integer> queue;
 
@@ -65,9 +80,12 @@ public class IgniteQueuePutTakeBenchmark extends IgniteQueueAbstractBenchmark {
             this.queue = queue;
         }
 
+
         @Override
-        public void run() {
-            while (queue.take() != null);
+        public Integer call() throws Exception {
+            int count = 0;
+            while (queue.take() != null) count++;
+            return count;
         }
     }
 }
